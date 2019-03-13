@@ -613,7 +613,7 @@ func (px packageExtracter) handleCall(call *ast.CallExpr) bool {
 
 	comment := ""
 	key := []string{}
-	if ident, ok := format.(*ast.Ident); ok {
+	if ident, ok := format.(*ast.Ident); ok && ident.Obj != nil {
 		key = append(key, ident.Name)
 		if v, ok := ident.Obj.Decl.(*ast.ValueSpec); ok && v.Comment != nil {
 			// TODO: get comment above ValueSpec as well
