@@ -27,7 +27,7 @@ import (
 	"golang.org/x/tools/go/ssa/ssautil"
 )
 
-const debug = true
+const debug = false
 
 // TODO:
 // - merge information into existing files
