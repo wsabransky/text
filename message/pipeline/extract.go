@@ -14,6 +14,7 @@ import (
 	"go/token"
 	"go/types"
 	"path/filepath"
+	"sort"
 	"strings"
 	"unicode"
 	"unicode/utf8"
@@ -26,7 +27,7 @@ import (
 	"golang.org/x/tools/go/ssa/ssautil"
 )
 
-const debug = false
+const debug = true
 
 // TODO:
 // - merge information into existing files
@@ -255,20 +256,20 @@ type posser interface {
 }
 
 func (x *extracter) debug(v posser, header string, args ...interface{}) {
-	// if debug {
-	// 	pos := ""
-	// 	if p := v.Parent(); p != nil {
-	// 		pos = posString(&x.conf, x.prog.Package(p), v.Pos())
-	// 	}
-	// 	if header != "CALL" && header != "INSERT" {
-	// 		header = "  " + header
-	// 	}
-	// 	fmt.Printf("%-32s%-10s%-15T ", pos+fmt.Sprintf("@%d", v.Pos()), header, v)
-	// 	for _, a := range args {
-	// 		fmt.Printf(" %v", a)
-	// 	}
-	// 	fmt.Println()
-	// }
+	if debug {
+		pos := ""
+		if p := v.Parent(); p != nil {
+			//pos = posString(&x.conf, p.Package(), v.Pos())
+		}
+		if header != "CALL" && header != "INSERT" {
+			header = "  " + header
+		}
+		fmt.Printf("%-32s%-10s%-15T ", pos+fmt.Sprintf("@%d", v.Pos()), header, v)
+		for _, a := range args {
+			fmt.Printf(" %v", a)
+		}
+		fmt.Println()
+	}
 }
 
 // visitInit evaluates and collects values assigned to global variables in an
@@ -380,7 +381,7 @@ func (x *extracter) visitFormats(call *callData, v ssa.Value) {
 					call.isMethod = len(f.Params) > f.Signature.Params().Len()
 					x.handleFunc(v.Parent(), call)
 				} else if debug && i != call.formatPos {
-					// // TODO: support this.
+					// TODO: support this.
 					// fmt.Printf("WARNING:%s: format string passed to arg %d and %d\n",
 					// 	posString(&x.conf, getPackage(x.ipkgs, f.Pkg.Pkg.Name()), call.Pos()),
 					// 	call.formatPos, i)
@@ -488,7 +489,7 @@ func (x *extracter) visitArgs(fd *callData, v ssa.Value) {
 // print returns Go syntax for the specified node.
 func (x *extracter) print(n ast.Node) string {
 	var buf bytes.Buffer
-	format.Node(&buf, x.conf.Fset, n)
+	format.Node(&buf, x.ipkgs[0].Fset, n)
 	return buf.String()
 }
 
@@ -509,7 +510,32 @@ func (px packageExtracter) getComment(n ast.Node) string {
 
 func (x *extracter) extractMessages() {
 	files := []packageExtracter{}
-	for _, pkg := range x.ipkgs {
+	lpkgs := x.ipkgs
+	var all []*packages.Package // postorder
+	seen := make(map[*packages.Package]bool)
+	var visit func(*packages.Package)
+	visit = func(lpkg *packages.Package) {
+		if !seen[lpkg] {
+			seen[lpkg] = true
+
+			// visit imports
+			var importPaths []string
+			for path := range lpkg.Imports {
+				importPaths = append(importPaths, path)
+			}
+			sort.Strings(importPaths) // for determinism
+			for _, path := range importPaths {
+				visit(lpkg.Imports[path])
+			}
+
+			all = append(all, lpkg)
+		}
+	}
+	for _, lpkg := range lpkgs {
+		visit(lpkg)
+	}
+	lpkgs = all
+	for _, pkg := range lpkgs {
 		for _, f := range pkg.Syntax {
 			// Associate comments with nodes.
 			px := packageExtracter{
