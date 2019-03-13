@@ -46,10 +46,12 @@ func config() (*pipeline.Config, error) {
 		return nil, wrap(err, "invalid srclang")
 	}
 	return &pipeline.Config{
+		Dir:                 *dir,
 		SourceLanguage:      tag,
 		Supported:           getLangs(),
 		TranslationsPattern: `messages\.(.*)\.json`,
 		GenFile:             *out,
+		GenPackage:          *outPath,
 	}, nil
 }
 

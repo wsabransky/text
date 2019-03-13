@@ -15,13 +15,15 @@ import (
 // - message rewriting
 
 var (
-	lang *string
-	out  *string
+	lang    *string
+	out     *string
+	outPath *string
 )
 
 func init() {
 	lang = cmdUpdate.Flag.String("lang", "en-US", "comma-separated list of languages to process")
 	out = cmdUpdate.Flag.String("out", "", "output file to write to")
+	outPath = cmdUpdate.Flag.String("outpath", ".", "path to the package where the file should be written")
 }
 
 var cmdUpdate = &Command{
